@@ -1,0 +1,218 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "Europe/Warsaw",
+  "schedule": [
+    "before 6am"
+  ],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 20,
+  "rebaseWhen": "conflicted",
+  "dependencyDashboard": {
+    "enabled": true
+  },
+  "automerge": false,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 6am on monday"
+    ]
+  },
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/tests/**",
+    "**/__fixtures__/**"
+  ],
+  "packageRules": [
+    {
+      "description": "Minor and patch updates are grouped; the rules below split the group per ecosystem so one red update in one stack does not hold the others back",
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major dependencies"
+    },
+    {
+      "description": "Non-major rust updates in their own PR",
+      "matchCategories": [
+        "rust"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major rust dependencies"
+    },
+    {
+      "description": "Non-major js updates in their own PR",
+      "matchCategories": [
+        "js"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major js dependencies"
+    },
+    {
+      "description": "Non-major java updates in their own PR",
+      "matchCategories": [
+        "java"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major java dependencies"
+    },
+    {
+      "description": "Maven artifacts found by the regex managers carry no category; they join the java group",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchDatasources": [
+        "maven"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major java dependencies"
+    },
+    {
+      "description": "Non-major docker updates in their own PR",
+      "matchCategories": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major docker dependencies"
+    },
+    {
+      "description": "Images found by the regex managers (Testcontainers images in Java tests) carry no category; they join the docker group, so a test image moves in the same PR as the compose image of the same server",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major docker dependencies"
+    },
+    {
+      "description": "Non-major ci updates in their own PR",
+      "matchCategories": [
+        "ci"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major github actions"
+    },
+    {
+      "description": "The Boot plugin and the Boot BOM move together in one PR",
+      "matchPackageNames": [
+        "org.springframework.boot",
+        "org.springframework.boot:**"
+      ],
+      "groupName": "spring boot"
+    },
+    {
+      "description": "A JVM change must never ride along with libraries: every base image, toolchain and CI JDK (java-jdk of setup-java) update is its own PR, and the catalog or build-script toolchain moves with the Dockerfile stages so the build JDK and the runtime JRE never drift apart. Only LTS lines are offered; an LTS arrives every fourth release from 17",
+      "matchDepNames": [
+        "eclipse-temurin",
+        "java-jdk"
+      ],
+      "allowedVersions": "/^(8|11|17|21|25|29|33|37|41|45|49)(\\D|$)/",
+      "groupName": "eclipse-temurin"
+    },
+    {
+      "description": "Base images are pinned to a digest, so a JVM build change is visible in the diff",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchDepNames": [
+        "eclipse-temurin"
+      ],
+      "pinDigests": true
+    },
+    {
+      "description": "A Testcontainers image mirrors the server the code talks to in prod: a major waits on the Dependency Dashboard until that server moves",
+      "matchFileNames": [
+        "**/src/test/**/*.java",
+        "**/src/testFixtures/**/*.java"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "springdoc 2.9.x targets the Boot 3 autoconfigure packages and breaks the Boot 4 context; 3.x is the Boot 4 line",
+      "matchPackageNames": [
+        "org.springdoc:**"
+      ],
+      "allowedVersions": "/^(2\\.8\\.|[3-9]\\.)/"
+    },
+    {
+      "description": "MinIO tags are RELEASE.<UTC timestamp>, not semver: without its own versioning Renovate drops the image",
+      "matchDepNames": [
+        "minio/minio"
+      ],
+      "versioning": "regex:^RELEASE\\.(?<major>\\d+)-(?<minor>\\d+)-(?<patch>\\d+)T.*Z$"
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "palantir-java-format is a version-only catalog entry (Spotless reads it), invisible to the gradle manager",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)gradle/libs\\.versions\\.toml$/"
+      ],
+      "matchStrings": [
+        "(?m)^palantir\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "depNameTemplate": "com.palantir.javaformat:palantir-java-format",
+      "datasourceTemplate": "maven"
+    },
+    {
+      "description": "Testcontainers images are string literals in Java tests, inline or in an *IMAGE constant, invisible to the docker managers",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)src/(test|testFixtures)/.+\\.java$/"
+      ],
+      "matchStrings": [
+        "(?:DockerImageName\\.parse|new \\w*Container(?:<[^>]*>)?)\\(\\s*\"(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[^\"@\\s/][^\"@\\s]*)(?:@(?<currentDigest>sha256:[a-f0-9]+))?\"",
+        "String \\w*IMAGE\\s*=\\s*\"(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[^\"@\\s/][^\"@\\s]*)(?:@(?<currentDigest>sha256:[a-f0-9]+))?\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "description": "The Java toolchain version is a version-only catalog entry or a literal in a build script; it follows the eclipse-temurin major tags",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)gradle/libs\\.versions\\.toml$/",
+        "/\\.gradle\\.kts$/"
+      ],
+      "matchStrings": [
+        "(?m)^java\\s*=\\s*\"(?<currentValue>\\d+)\"",
+        "JavaLanguageVersion\\.of\\((?<currentValue>\\d+)\\)"
+      ],
+      "depNameTemplate": "eclipse-temurin",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "regex:^(?<major>\\d+)$"
+    }
+  ]
+}
